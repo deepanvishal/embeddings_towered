@@ -1,0 +1,45 @@
+Hi [Manager Name],
+I've completed the provider overlap analysis using our embedding model and wanted to share the key findings. I've attached a comprehensive Excel workbook that breaks down our results.
+What This Analysis Shows
+Page 1 (Summary): Overview of all detected overlaps across provider specialty labels, showing which provider types are being confused by our model.
+Page 2 (Navigation Index): Complete list of specific providers that are misclassified, with their overlap scores. Each case links to detailed analysis.
+How We Detect Overlaps
+Simple Terms: We identify providers who are far from their own specialty group but close to a different specialty group - indicating the model sees them as more similar to the "wrong" group.
+Statistical Approach:
+
+Calculate distance from each provider to their assigned label's centroid
+Find providers with distance > group median (outliers)
+Check if these outliers are closer to other specialty centroids than expected
+Generate overlap coefficient showing severity of misclassification
+
+Individual Case Analysis
+Each case (Pages 3+) shows:
+
+Embedding Profile Comparison: 64-dimensional similarity patterns between the misclassified provider vs. typical providers
+Procedure/Diagnosis Overlap: What medical services they actually share
+Demographics/Cost Patterns: Why the model sees them as similar
+PCA Visualization: Spatial positioning showing the overlap
+
+Key Findings From Initial Review
+Model Improvements Needed:
+
+E&M Code Cleanup - Model confused by evaluation/management codes (low effort, high impact)
+Label Refinement - Spine/Heart hospitals clustering with Orthopedics
+Specialty Distinctions - Ambulatory Surgery, Endoscopy, Eye hospitals showing significant overlap
+
+Concerning Overlaps:
+
+Women ↔ Behavioral Health
+Children ↔ Behavioral Health
+Cancer ↔ VA (most concerning)
+
+Recommended Next Steps
+Phase 1 (Quick Wins):
+
+Remove E&M procedure codes from embedding training
+Exclude Emergency cost category and place-of-service features
+
+Phase 2: Review and refine problematic label assignments based on detailed case analysis
+Let's discuss tomorrow to prioritize these improvements and plan our implementation approach.
+Best regards,
+[Your Name]
