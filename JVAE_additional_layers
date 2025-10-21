@@ -9,24 +9,23 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
 # Assuming you have loaded:
-# proc_tensor, diag_tensor, member_tensor on device
+# proc_tensor, diag_tensor on device
 # all_pins, pin_to_label
 
 proc_dim = proc_tensor.shape[1]
 diag_dim = diag_tensor.shape[1]
-member_dim = member_tensor.shape[1]
 hidden_dim = 256
 latent_dim = 128
 
-print(f"Dimensions - Procedures: {proc_dim}, Diagnoses: {diag_dim}, Member: {member_dim}")
+print(f"Dimensions - Procedures: {proc_dim}, Diagnoses: {diag_dim}")
 print(f"Hidden dim: {hidden_dim}, Latent dim: {latent_dim}")
 
 # ============================================================================
 # MODEL ARCHITECTURE (DEEPER TOWERS)
 # ============================================================================
 
-class MultiModalityEncoder(nn.Module):
-    def __init__(self, proc_dim, diag_dim, member_dim, hidden_dim=256, latent_dim=128):
+class TwoModalityEncoder(nn.Module):
+    def __init__(self, proc_dim, diag_dim, hidden_dim=256, latent_dim=128):
         super().__init__()
         
         # Procedure encoder (3 layers for complex patterns)
@@ -55,16 +54,8 @@ class MultiModalityEncoder(nn.Module):
             nn.Linear(512, hidden_dim)
         )
         
-        # Member encoder (2 layers, simpler)
-        self.member_enc = nn.Sequential(
-            nn.Linear(member_dim, 128),
-            nn.ReLU(),
-            nn.Dropout(0.2),
-            nn.Linear(128, hidden_dim // 2)
-        )
-        
         # Joint latent layers
-        joint_dim = hidden_dim + hidden_dim + hidden_dim // 2
+        joint_dim = hidden_dim * 2
         self.mu_layer = nn.Linear(joint_dim, latent_dim)
         self.logvar_layer = nn.Linear(joint_dim, latent_dim)
         
@@ -82,19 +73,12 @@ class MultiModalityEncoder(nn.Module):
             nn.Dropout(0.3),
             nn.Linear(512, diag_dim)
         )
-        
-        self.member_dec = nn.Sequential(
-            nn.Linear(latent_dim, 128),
-            nn.ReLU(),
-            nn.Linear(128, member_dim)
-        )
     
-    def encode(self, proc, diag, member):
+    def encode(self, proc, diag):
         proc_h = self.proc_enc(proc)
         diag_h = self.diag_enc(diag)
-        member_h = self.member_enc(member)
         
-        joint_h = torch.cat([proc_h, diag_h, member_h], dim=1)
+        joint_h = torch.cat([proc_h, diag_h], dim=1)
         mu = self.mu_layer(joint_h)
         logvar = self.logvar_layer(joint_h)
         
@@ -108,18 +92,17 @@ class MultiModalityEncoder(nn.Module):
     def decode(self, z):
         proc_recon = self.proc_dec(z)
         diag_recon = self.diag_dec(z)
-        member_recon = self.member_dec(z)
         
-        return proc_recon, diag_recon, member_recon
+        return proc_recon, diag_recon
     
-    def forward(self, proc, diag, member):
-        mu, logvar = self.encode(proc, diag, member)
+    def forward(self, proc, diag):
+        mu, logvar = self.encode(proc, diag)
         z = self.reparameterize(mu, logvar)
-        proc_recon, diag_recon, member_recon = self.decode(z)
+        proc_recon, diag_recon = self.decode(z)
         
-        return proc_recon, diag_recon, member_recon, mu, logvar
+        return proc_recon, diag_recon, mu, logvar
 
-model = MultiModalityEncoder(proc_dim, diag_dim, member_dim, hidden_dim, latent_dim).to(device)
+model = TwoModalityEncoder(proc_dim, diag_dim, hidden_dim, latent_dim).to(device)
 
 total_params = sum(p.numel() for p in model.parameters())
 print(f"Model parameters: {total_params:,}")
@@ -134,11 +117,10 @@ def triplet_loss(anchor, positive, negative, margin=1.0):
     loss = F.relu(pos_dist - neg_dist + margin)
     return loss.mean()
 
-def reconstruction_loss(proc_recon, diag_recon, member_recon, proc_true, diag_true, member_true):
+def reconstruction_loss(proc_recon, diag_recon, proc_true, diag_true):
     proc_loss = F.mse_loss(proc_recon, proc_true)
     diag_loss = F.mse_loss(diag_recon, diag_true)
-    member_loss = F.mse_loss(member_recon, member_true)
-    return proc_loss + diag_loss + member_loss
+    return proc_loss + diag_loss
 
 def kl_divergence(mu, logvar):
     return -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
@@ -185,15 +167,13 @@ for epoch in range(epochs):
         
         proc_batch = proc_tensor[batch_indices]
         diag_batch = diag_tensor[batch_indices]
-        member_batch = member_tensor[batch_indices]
         batch_pins = [all_pins[i] for i in batch_indices]
         
         optimizer.zero_grad()
         
-        proc_recon, diag_recon, member_recon, mu, logvar = model(proc_batch, diag_batch, member_batch)
+        proc_recon, diag_recon, mu, logvar = model(proc_batch, diag_batch)
         
-        recon_loss = reconstruction_loss(proc_recon, diag_recon, member_recon, 
-                                         proc_batch, diag_batch, member_batch)
+        recon_loss = reconstruction_loss(proc_recon, diag_recon, proc_batch, diag_batch)
         kl_loss = kl_divergence(mu, logvar) / len(batch_indices)
         
         loss = recon_loss + 0.001 * kl_loss
@@ -262,5 +242,5 @@ for epoch in range(epochs):
 print("\nTraining completed!")
 
 # Save model
-torch.save(model.state_dict(), 'multimodal_encoder.pth')
-print("Model saved to multimodal_encoder.pth")
+torch.save(model.state_dict(), 'two_modality_encoder.pth')
+print("Model saved to two_modality_encoder.pth")
