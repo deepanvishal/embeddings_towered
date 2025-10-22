@@ -748,6 +748,48 @@ print("="*80)
 # =======================================
 
 # ============================================================================
+# EXTRACT FINAL EMBEDDINGS USING BEST MODEL
+# ============================================================================
+
+print("\nLoading best model and extracting embeddings...")
+
+model.load_state_dict(torch.load('best_model_improved.pth'))
+model.eval()
+
+all_combined_embeddings = []
+all_tower_embeddings = {
+    'proc': [], 'diag': [], 'demo': [], 'plc': [], 'cost': [], 'pin': []
+}
+
+batch_size_inference = 256
+n_batches_inference = (n_samples + batch_size_inference - 1) // batch_size_inference
+
+with torch.no_grad():
+    for batch_idx in range(n_batches_inference):
+        start_idx = batch_idx * batch_size_inference
+        end_idx = min(start_idx + batch_size_inference, n_samples)
+        
+        proc_batch = proc_tensor[start_idx:end_idx].to(device)
+        diag_batch = diag_tensor[start_idx:end_idx].to(device)
+        demo_batch = demo_tensor[start_idx:end_idx].to(device)
+        plc_batch = plc_tensor[start_idx:end_idx].to(device)
+        cost_batch = cost_ctg_tensor[start_idx:end_idx].to(device)
+        pin_batch = PIN_smry_tensor[start_idx:end_idx].to(device)
+        
+        combined_emb, tower_embs = model.get_embeddings(
+            proc_batch, diag_batch, demo_batch, plc_batch, cost_batch, pin_batch
+        )
+        
+        all_combined_embeddings.append(combined_emb.cpu().numpy())
+        for key in tower_embs:
+            all_tower_embeddings[key].append(tower_embs[key].cpu().numpy())
+
+final_embeddings = np.vstack(all_combined_embeddings)
+tower_embeddings = {key: np.vstack(val) for key, val in all_tower_embeddings.items()}
+
+print(f"\nFinal embeddings shape: {final_embeddings.shape}")
+
+# ============================================================================
 # CREATE EMBEDDINGS DATAFRAME
 # ============================================================================
 
