@@ -746,3 +746,47 @@ print(f"Best validation loss: {best_val_loss:.4f}")
 print("="*80)
 
 # =======================================
+
+# ============================================================================
+# CREATE EMBEDDINGS DATAFRAME
+# ============================================================================
+
+embedding_data = {'PIN': pin_list}
+
+for i in range(PROC_LATENT_DIM):
+    embedding_data[f'tower1_proc_emb_{i}'] = tower_embeddings['proc'][:, i]
+
+for i in range(DIAG_LATENT_DIM):
+    embedding_data[f'tower2_diag_emb_{i}'] = tower_embeddings['diag'][:, i]
+
+for i in range(demo_latent_dim):
+    embedding_data[f'tower3_demo_emb_{i}'] = tower_embeddings['demo'][:, i]
+
+for i in range(plc_latent_dim):
+    embedding_data[f'tower4_plc_emb_{i}'] = tower_embeddings['plc'][:, i]
+
+for i in range(cost_latent_dim):
+    embedding_data[f'tower5_cost_emb_{i}'] = tower_embeddings['cost'][:, i]
+
+for i in range(pin_latent_dim):
+    embedding_data[f'tower6_pin_emb_{i}'] = tower_embeddings['pin'][:, i]
+
+embeddings_df = pd.DataFrame(embedding_data)
+
+print(f"\nEmbeddings dataframe: {embeddings_df.shape}")
+print("\nColumn breakdown:")
+print(f"  Tower 1 (Procedures): {PROC_LATENT_DIM} dims")
+print(f"  Tower 2 (Diagnoses): {DIAG_LATENT_DIM} dims")
+print(f"  Tower 3 (Demographics): {demo_latent_dim} dims")
+print(f"  Tower 4 (Place): {plc_latent_dim} dims")
+print(f"  Tower 5 (Cost): {cost_latent_dim} dims")
+print(f"  Tower 6 (PIN Summary): {pin_latent_dim} dims")
+
+embeddings_df.to_parquet('provider_embeddings_improved.parquet', index=False)
+
+print("\nSaved: provider_embeddings_improved.parquet")
+print("\n" + "="*80)
+print("COMPLETE")
+print("="*80)
+
+# =======================================
