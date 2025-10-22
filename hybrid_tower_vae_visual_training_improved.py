@@ -37,6 +37,23 @@ print(f"  PIN Summary: {pin_dim} cols")
 print(f"  Total samples: {n_samples}")
 print(f"  Labeled samples: {len(pin_to_label)}")
 
+
+# At the top, after loading pin_to_label
+from sklearn.preprocessing import LabelEncoder
+
+# Create label encoder
+label_encoder = LabelEncoder()
+all_label_names = list(pin_to_label.values())
+label_encoder.fit(all_label_names)
+
+# Convert pin_to_label to use numeric indices
+pin_to_label_numeric = {pin: label_encoder.transform([label])[0] for pin, label in pin_to_label.items()}
+
+print(f"Label mapping:")
+for i, label_name in enumerate(label_encoder.classes_):
+    print(f"  {i}: {label_name}")
+
+
 # Hyperparameters (now configurable)
 PROC_LATENT_DIM = 128
 DIAG_LATENT_DIM = 96
@@ -337,7 +354,7 @@ def validate(model, val_indices, kl_weight):
             pin_batch = PIN_smry_tensor[batch_indices].to(device)
             
             batch_pins = [pin_list[i] for i in batch_indices]
-            batch_labels = torch.tensor([pin_to_label[pin] for pin in batch_pins], device=device)
+            batch_labels = torch.tensor([pin_to_label_numeric[pin] for pin in batch_pins], device=device)
             
             outputs = model(proc_batch, diag_batch, demo_batch, plc_batch, cost_batch, pin_batch)
             combined_emb, _ = model.get_embeddings(proc_batch, diag_batch, demo_batch, plc_batch, cost_batch, pin_batch)
@@ -423,7 +440,8 @@ for epoch in range(EPOCHS):
         pin_batch = PIN_smry_tensor[batch_indices].to(device)
         
         batch_pins = [pin_list[i] for i in batch_indices]
-        batch_labels = torch.tensor([pin_to_label[pin] for pin in batch_pins], device=device)
+        batch_labels = torch.tensor([pin_to_label_numeric[pin] for pin in batch_pins], device=device)
+
         
         optimizer.zero_grad()
         
