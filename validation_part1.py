@@ -288,6 +288,10 @@ for i in range(n_pairs):
     pin_a = filtered_pin_list[idx1[i]]
     pin_b = filtered_pin_list[idx2[i]]
     
+    # Get provider names from pin_to_label
+    name_a = pin_to_label.get(pin_a, 'Unknown')
+    name_b = pin_to_label.get(pin_b, 'Unknown')
+    
     # Get procedure sets
     procs_a = pin_to_procedures[pin_a]
     procs_b = pin_to_procedures[pin_b]
@@ -310,7 +314,9 @@ for i in range(n_pairs):
     
     results.append({
         'PIN_A': pin_a,
+        'Provider_A_Name': name_a,
         'PIN_B': pin_b,
+        'Provider_B_Name': name_b,
         'Common_Procedures': n_common,
         'Total_Procedures_A': n_total_a,
         'Total_Procedures_B': n_total_b,
