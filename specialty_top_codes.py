@@ -10,9 +10,13 @@ print("="*80)
 # Parameters
 TOP_K_CODES = 200  # Number of top codes per specialty
 
-# Get label names (decode from numeric labels)
-label_names = label_encoder.classes_
-n_specialties = len(label_names)
+# Get unique label names directly from label_df (no encoding needed)
+labeled_pins = label_df.iloc[:, 0].tolist()
+label_strings = label_df.iloc[:, 1].tolist()
+pin_to_label_string = dict(zip(labeled_pins, label_strings))
+
+unique_specialties = sorted(set(label_strings))
+n_specialties = len(unique_specialties)
 
 print(f"\nProcessing {n_specialties} specialties...")
 print(f"Extracting top {TOP_K_CODES} procedure codes per specialty")
@@ -22,9 +26,9 @@ specialty_code_indices = {}
 specialty_code_names = {}
 specialty_stats = {}
 
-for specialty_idx, specialty_name in enumerate(label_names):
-    # Find all PINs with this label
-    specialty_pins = [pin for pin, label in pin_to_label.items() if label == specialty_idx]
+for specialty_name in unique_specialties:
+    # Find all PINs with this label (using raw string labels)
+    specialty_pins = [pin for pin, label in pin_to_label_string.items() if label == specialty_name]
     
     if len(specialty_pins) == 0:
         print(f"\nWARNING: No hospitals found for {specialty_name}")
@@ -84,7 +88,7 @@ specialty_mappings = {
     'code_names': specialty_code_names,      # {specialty: [code_strings]}
     'stats': specialty_stats,                 # {specialty: {stats}}
     'top_k': TOP_K_CODES,
-    'label_encoder_classes': label_names.tolist()
+    'specialties': unique_specialties
 }
 
 with open('specialty_code_mappings.pkl', 'wb') as f:
@@ -107,3 +111,33 @@ print(f"Average code coverage: {avg_coverage:.2%}")
 print(f"\nHospitals per specialty:")
 for specialty, stats in sorted(specialty_stats.items(), key=lambda x: x[1]['n_hospitals'], reverse=True):
     print(f"  {specialty:20s}: {stats['n_hospitals']:4d} hospitals, {stats['n_codes_extracted']:3d} codes")
+
+# ============================================================================
+# HOW TO LOAD IN NEXT SCRIPT
+# ============================================================================
+print("\n" + "="*80)
+print("TO LOAD IN YOUR TRAINING SCRIPT:")
+print("="*80)
+print("""
+import pickle
+
+# Load specialty mappings
+with open('specialty_code_mappings.pkl', 'rb') as f:
+    specialty_mappings = pickle.load(f)
+
+specialty_code_indices = specialty_mappings['code_indices']
+specialty_code_names = specialty_mappings['code_names']
+specialty_stats = specialty_mappings['stats']
+
+# Example usage:
+for specialty, indices in specialty_code_indices.items():
+    print(f"{specialty}: {len(indices)} codes")
+    
+    # Extract columns for this specialty
+    X_specialty = proc_tensor[:, indices]
+    print(f"  Shape: {X_specialty.shape}")
+""")
+
+print("\n" + "="*80)
+print("SPECIALTY CODE EXTRACTION COMPLETE")
+print("="*80)
